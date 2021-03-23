@@ -14,6 +14,13 @@ class Animador(object):
 
     def __init__(self, obj_anim, timeout, target, identificador):
         """
+        Objeto que se encarga de realizar las animaciones.
+
+        Lo que hace es actualizar un atributo del objeto al que pertenece. Según el temporizador establecido, su
+        interpolación se adapta.
+
+        Usa threads separadas para poder ejecutarse paralelamente al resto del codigo
+
         :param obj_anim: Objeto que se quiere animar, el que se escoja
         :param timeout: Tiempo que dura un loop de animación
         :param target: Lista [Parametro por modificar = Valor objetivo]
@@ -56,7 +63,7 @@ class Animador(object):
             # Bucle de animacón en sí
             while time.time() - start_time < self.timeout:
                 # Nº de calculos por segundo
-                clock.tick(30)
+                clock.tick(60)
 
                 # Comprobamos si el flag nos indica que hay que parar
                 if self.stop_thread:
@@ -65,7 +72,7 @@ class Animador(object):
                     return
 
                 # Decide la proporcionalidad del incremento/decremento
-                step = (time.time() - start_time) / self.timeout
+                step = round((time.time() - start_time) / self.timeout, 3)
 
                 # Animación de un valor numerico
                 if not num_inicial == 'nada':
@@ -77,9 +84,13 @@ class Animador(object):
                     for i in range(len(tup_inicial)):
                         new_value.append(tup_inicial[i] + step * (self.target[1][i] - tup_inicial[i]))
                     self.obj_anim.set(self.target[0], new_value)
+                if hasattr(self.obj_anim, 'dirty'):
+                    self.obj_anim.dirty[self.target[0]] = True
 
             # Nos aseguramos que al acabar el valor es exactamente el que queriamos
             self.obj_anim.set(self.target[0], self.target[1])
+            if hasattr(self.obj_anim, 'dirty'):
+                self.obj_anim.dirty[self.target[0]] = True
 
         self.busy = False
 
@@ -87,93 +98,139 @@ class Animador(object):
 # Base de cada jugador. Donde está el castillo, la vida, etc.
 # Maneja las torres, la muralla, textos y numeros
 class Base(pygame.sprite.Sprite):
-    def __init__(self, x, y, mult_ancho, mult_alto, torre_izq, torre_der, torre_cen, muralla, hp,
-                 texto_hp, hp_muro, texto_hp_muro):
+
+    def __init__(self, coord, mult_ancho, mult_alto, hp, texto_hp, hp_muro, texto_hp_muro):
         """
-        :param x: Coordenada x
-        :param y: Coordenada y
+        Base de cada jugador. Donde está el castillo, la vida, etc.
+
+        Maneja las torres, la muralla, textos y numeros
+
+        :param coord: Lista. [x, y]
         :param mult_ancho: Multiplicador de anchura
         :param mult_alto: Multiplicador de altura
-        :param torre_izq: Objeto Torre que representa la torre de la izquierda
-        :param torre_der: Objeto Torre que representa la torre de la derecha
-        :param torre_cen: Objeto Torre que representa la torre central
-        :param muralla: Objeto Torre que representa la muralla
         :param hp: Numero .Marca la vida del castillo
         :param texto_hp: Objeto TextoColgado que representa hp
         :param hp_muro: Numero. Marca la vida de la muralla
         :param texto_hp_muro: Objeto TextoColgado que representa hp_muro
         """
         super().__init__()
-        self.x = x
-        self.y = y
+        self.coord = coord
         self.mult_ancho = mult_ancho
         self.mult_alto = mult_alto
-        self.torre_izq = torre_izq
-        self.torre_der = torre_der
-        self.torre_cen = torre_cen
-        self.muralla = muralla
+
         self.hp = hp
         self.texto_hp = texto_hp
         self.hp_muro = hp_muro
         self.texto_hp_muro = texto_hp_muro
 
+        self.torre = {}  # Diccionario con obetos Torre
+        self.textos = {}  # Diccionario con objetos TextoColgado
         self.anim = {}  # Diccionario con objetos Animador
+
+        self.dirty = {}  # Diciionario con una lista de referencia para saber si hay que actualizar algo
+
+        for attr in ANIMABLES_NUM:
+            self.dirty[attr] = True
+        for attr in ANIMABLES_TUP:
+            self.dirty[attr] = True
 
     def get(self, attr):
         if attr == 'hp':
             return self.hp
         elif attr == 'hp_muro':
             return self.hp_muro
+        elif attr == 'coord':
+            return self.coord
 
     def set(self, attr, value):
         if attr == 'hp':
             self.hp = value
         elif attr == 'hp_muro':
             self.hp_muro = value
+        elif attr == 'coord':
+            self.coord = value
 
-    # Multiplica el ancho y alto de los objets Torre por sus multiplicadores
+    # Cuelga objetos sobre este objeto, para poder ser usado a traves de este objeto
+    # Por ejemplo colgar distintos tipos de animaciones, torres, textos...
+    def loadObject(self, *objetos):
+        for objeto in objetos:
+            if type(objeto) == Animador:
+                self.anim[objeto.id] = objeto
+            elif type(objeto) == TextoColgado:
+                self.textos[objeto.id] = objeto
+            elif type(objeto) == Torre:
+                self.torre[objeto.id] = objeto
+
+    # Actualiza las torres, si hace falta
     def update(self, win):
-        # Reparte el daño entre muralla y las torres y calcula los offsets
-        self.muralla.y_off = (self.muralla.alto * (100 - self.get('hp_muro')) / 100)
-        if self.hp >= 70:
-            self.torre_izq.y_off = 0
-            self.torre_cen.y_off = 0
-            self.torre_der.y_off = (self.torre_der.alto * (100 - self.get('hp')) / 30)
-        elif self.hp >= 40:
-            self.torre_izq.y_off = (self.torre_izq.alto * (70 - self.get('hp')) / 30)
-            self.torre_cen.y_off = 0
-            self.torre_der.y_off = self.torre_der.alto
-        elif self.hp > 0:
-            self.torre_izq.y_off = self.torre_izq.alto
-            self.torre_cen.y_off = (self.torre_cen.alto * (40 - self.get('hp')) / 40)
-            self.torre_der.y_off = self.torre_der.alto
-        else:
-            self.torre_izq.y_off = self.torre_izq.alto
-            self.torre_cen.y_off = self.torre_cen.alto
-            self.torre_der.y_off = self.torre_der.alto
-
-        # Predispone las torres y muras del castillo
-        for a in [self.torre_cen, self.torre_der, self.torre_izq, self.muralla]:
-            a.ancho = int(a.ancho_base * self.mult_ancho)
-            a.alto = int(a.alto_base * self.mult_alto)
-            a.x = self.x
-            a.y = self.y
-
-        # Añade offset por hundimiento
-        self.torre_izq.y = self.y + self.torre_cen.alto - self.torre_izq.alto + self.torre_izq.y_off
-        self.torre_izq.x = self.x - self.muralla.ancho / 2 + self.torre_cen.ancho / 2 + self.torre_izq.ancho
-        self.torre_der.y = self.y + self.torre_cen.alto - self.torre_der.alto + self.torre_der.y_off
-        self.torre_cen.y += self.torre_cen.y_off
-        self.torre_der.x = self.x + self.muralla.ancho / 2 - self.torre_cen.ancho / 2 - self.torre_der.ancho * 2 / 3
-        self.muralla.y = self.y + self.torre_cen.alto - self.muralla.alto + self.muralla.y_off
-        self.muralla.x = self.x - self.muralla.ancho / 2 + self.torre_cen.ancho / 2
+        if self.dirty['hp']:
+            self.update_off('hp')
+            self.add_off('hp')
+            self.dirty['hp'] = False
+        if self.dirty['hp_muro']:
+            self.update_off('hp_muro')
+            self.add_off('hp_muro')
+            self.dirty['hp_muro'] = False
+        if self.dirty['coord']:
+            self.update_mult()
+            self.add_off('coord')
+            self.dirty['coord'] = False
 
         # Ponemos el suelo debajo, para esconder lo que se hunde.
         # Temporal, el suelo irá por separado (o no...)
         pygame.draw.rect(win, VERDE_CLARO,
-                         (self.x - self.muralla.ancho / 2 + self.torre_cen.ancho / 2,
-                          self.y + self.torre_cen.alto - 1,
-                          self.muralla.ancho, self.torre_cen.alto), 0)
+                         (self.coord[0] - self.torre['mura'].ancho / 2 + self.torre['t_cen'].ancho / 2,
+                          self.coord[1] + self.torre['t_cen'].alto - 1, self.torre['mura'].ancho,
+                          self.torre['t_cen'].alto), 0)
+
+    # Predispone las torres y muras del castillo
+    def update_mult(self):
+        for a in [self.torre['t_cen'], self.torre['t_der'], self.torre['t_izq'], self.torre['mura']]:
+            a.ancho = int(a.ancho_base * self.mult_ancho)
+            a.alto = int(a.alto_base * self.mult_alto)
+            a.x = self.coord[0]
+            a.y = self.coord[1]
+
+    # ReCalcula el offset de las torres o muras
+    def update_off(self, tipo):
+        if tipo == 'hp':
+            if self.hp >= 70:
+                self.torre['t_izq'].y_off = 0
+                self.torre['t_cen'].y_off = 0
+                self.torre['t_der'].y_off = (self.torre['t_der'].alto * (100 - self.get('hp')) / 30)
+            elif self.hp >= 40:
+                self.torre['t_izq'].y_off = (self.torre['t_izq'].alto * (70 - self.get('hp')) / 30)
+                self.torre['t_cen'].y_off = 0
+                self.torre['t_der'].y_off = self.torre['t_der'].alto
+            elif self.hp > 0:
+                self.torre['t_izq'].y_off = self.torre['t_izq'].alto
+                self.torre['t_cen'].y_off = (self.torre['t_cen'].alto * (40 - self.get('hp')) / 40)
+                self.torre['t_der'].y_off = self.torre['t_der'].alto
+            else:
+                self.torre['t_izq'].y_off = self.torre['t_izq'].alto
+                self.torre['t_cen'].y_off = self.torre['t_cen'].alto
+                self.torre['t_der'].y_off = self.torre['t_der'].alto
+        elif tipo == 'hp_muro':
+            self.torre['mura'].y_off = (self.torre['mura'].alto * (100 - self.get('hp_muro')) / 100)
+
+    # Obtiene la nueva posición teniendo en cuenta coordenadas y offset
+    def add_off(self, tipo):
+        if tipo == 'hp' or tipo == 'coord':
+            self.torre['t_izq'].y = self.coord[1] + self.torre['t_cen'].alto - self.torre['t_izq'].alto + self.torre[
+                't_izq'].y_off
+            self.torre['t_izq'].x = self.coord[
+                                        0] - self.torre['mura'].ancho / 2 + self.torre['t_cen'].ancho / 2 + self.torre[
+                                        't_izq'].ancho
+            self.torre['t_der'].y = self.coord[1] + self.torre['t_cen'].alto - self.torre['t_der'].alto + self.torre[
+                't_der'].y_off
+            self.torre['t_cen'].y = self.coord[1] + self.torre['t_cen'].y_off
+            self.torre['t_der'].x = self.coord[
+                                        0] + self.torre['mura'].ancho / 2 - self.torre['t_cen'].ancho / 2 - self.torre[
+                                        't_der'].ancho * 2 / 3
+        if tipo == 'hp_muro' or tipo == 'coord':
+            self.torre['mura'].y = self.coord[1] + self.torre['t_cen'].alto - self.torre['mura'].alto + self.torre[
+                'mura'].y_off
+            self.torre['mura'].x = self.coord[0] - self.torre['mura'].ancho / 2 + self.torre['t_cen'].ancho / 2
 
     # Reescribe el texto
     def redraw(self, win):
@@ -181,28 +238,23 @@ class Base(pygame.sprite.Sprite):
         self.texto_hp_muro.valor = self.hp_muro
         self.texto_hp.renderSelf()
         self.texto_hp_muro.renderSelf()
-        win.blit(self.texto_hp.texto, (self.x, self.y))
-        win.blit(self.texto_hp_muro.texto, (self.x + 50, self.y))
+        win.blit(self.texto_hp.texto, (self.coord[0], self.coord[1]))
+        win.blit(self.texto_hp_muro.texto, (self.coord[0] + 50, self.coord[1]))
 
     # Saber si el ratón se encuentra por encima
     def mouseOver(self, pos):
         pass  # LLamar mouseOver de otros objetos
 
-    # Cuelga objetos sobre este objeto, para poder ser usado a traves de este objeto
-    # Por ejemplo colgar distintos tipos de animaciones
-    def loadObject(self, objeto):
-        if type(objeto) == Animador:
-            self.anim[objeto.id] = objeto
-
 
 # Las torres. Tienen puntos de vida HP y tal
 class Torre(pygame.sprite.Sprite):
 
-    def __init__(self, enlace, x=1, y=1, ancho=1, alto=1):
+    def __init__(self, enlace, identificador, x=1, y=1, ancho=1, alto=1):
         """
-        :param dimen_base: Lista. Dimensiones base [ancho, alto]
         :param enlace: String. Ruta a la imagen de la imagen
+        :param identificador: ID que identifica el tipo de torre que es
         :param coord: Lista. Coordenadas [x,y]
+        :param dimen_base: Lista. Dimensiones base [ancho, alto]
         """
         super().__init__()
         self.x = x
@@ -214,7 +266,8 @@ class Torre(pygame.sprite.Sprite):
         self.alto = alto
         self.alto_base = alto
         self.enlace = enlace
-        self.icono = pygame.image.load(enlace)
+        self.id = identificador
+        self.icono = pygame.image.load(enlace).convert()
         self.image = pygame.Surface([1, 1])
         self.rect = self.image.get_rect()
         self.rect.center = [x, y]
@@ -247,7 +300,7 @@ class PlantillaCarta(pygame.sprite.Sprite):
         self._coord = coord
         self._dimen = dimen
         self._color = color
-        self._icono = pygame.image.load(link_icono)
+        self._icono = pygame.image.load(link_icono).convert()
         self._link_icono = link_icono
         self._image = pygame.Surface(dimen)
         self._rect = self._image.get_rect()
@@ -293,27 +346,32 @@ class PlantillaCarta(pygame.sprite.Sprite):
 
     # Cuelga objetos sobre este objeto, para poder ser usado a traves de este objeto
     # Por ejemplo colgar distintos tipos de animaciones
-    def loadObject(self, objeto):
-        if type(objeto) == Animador:
-            self.anim[objeto.id] = objeto
+    def loadObject(self, *objetos):
+        for objeto in objetos:
+            if type(objeto) == Animador:
+                self.anim[objeto.id] = objeto
+            elif type(objeto) == TextoColgado:
+                self.textos[objeto.id] = objeto
 
 
-# Las cartas en si. Puedes hacer click en ellas y desaparecen tras usarse
+# Las cartas en sí
 class Carta(PlantillaCarta):
     expanding = True  # Indica si la carta se está expandiendo
     shrinking = True  # Indica si la carta se está encojiendo
 
-    def __init__(self, coord, dimen, color, tipo, descr, link_icono):
+    def __init__(self, coord, dimen, color, tipo, link_icono):
         """
+        Las cartas en sí. Puedes hacer click en ellas y hacen cosas.
+
+        Autogestiona sus animaciones.
+
         :param coord: Lista. Coordenadas [x,y]
         :param dimen: Lista. Dimensiones [ancho,alto]
         :param color: Color de fondo
         :param tipo: String. Tipo de carta. Identificador de algun tipo
-        :param descr: Objeto TextoColgado. Muestra el nombre de la carta
         :param link_icono: String. Ruta a la imagen del icono
         """
         super().__init__(coord, dimen, color, link_icono)
-        self.descr = descr
         self.tipo = tipo
 
     # Actualiza graficamente el objeto
@@ -324,8 +382,8 @@ class Carta(PlantillaCarta):
     # Actualiza graficamente los iconos y textos del objeto
     def redraw(self, win):
         super().redraw(win)
-        self.descr.renderSelf()
-        win.blit(self.descr.texto, (self._coord[0] + self._dimen[0] / 8, self._coord[1] - self._dimen[1] / 5))
+        self.textos['descr'].renderSelf()
+        win.blit(self.textos['descr'].texto, colocar(self, self.textos['descr'], ['left', 'top']))
 
     # Gestiona animaciones de forma pasiva y automatica
     def animSelf(self):
@@ -345,15 +403,18 @@ class Carta(PlantillaCarta):
                 self.anim['encojer'].start()
 
 
+# Los recuadros donde se muestran cada recurso
 class CartaRecurso(PlantillaCarta):
 
     def __init__(self, coord, dimen, color, link_icono, recurso):
         """
+        Los recuadros donde se muestran cada recurso.
+
         :param coord: Lista. Coordenadas [x,y]
         :param dimen: Lista. Dimensiones [ancho,alto]
         :param color: Color de fondo
         :param link_icono: String. Ruta a la imagen del icono
-        :param recurso: Recurso. El recurso en que esta carta representa
+        :param recurso: Recurso. El recurso que esta carta representa
         """
         super().__init__(coord, dimen, color, link_icono)
         self.recurso = recurso
@@ -373,13 +434,6 @@ class CartaRecurso(PlantillaCarta):
                  colocar(self, self.textos['herreros'], ['right', 'top']))
         win.blit(self.textos['cantidad herreros'].texto,
                  colocar(self, self.textos['cantidad herreros'], ['right', 'top'], [0.3, 0.2]))
-
-    # Cuelga objetos sobre este objeto, para poder ser usado a traves de este objeto
-    # Por ejemplo colgar distintos tipos de animaciones
-    def loadObject(self, objeto):
-        super().loadObject(objeto)
-        if type(objeto) == TextoColgado:
-            self.textos[objeto.id] = objeto
 
 
 # Texto extra de otros objetos. Titulos, descripciones, etc.

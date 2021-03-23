@@ -1,4 +1,6 @@
-# Explorar el tema de conceptos y turnos
+# Explorar el tema de recursos y turnos
+# Optimizar animaciones, estudiar un sistema que detecta cambios en posiciones/dimensiones y llama a actualizar la
+# pantalla, ahorrando recursos
 
 import pygame
 import pygame_widgets
@@ -7,7 +9,7 @@ from Constantes import *
 from Clases import *
 from Funciones import *
 
-# Creamos la ventana donde se muestra todo
+# Creamos la ventana donde se muestra tod0
 WIN = pygame.display.set_mode((WIDTH, HEIGHT))
 pygame.display.set_caption('Test7')
 
@@ -19,16 +21,15 @@ def shuffle():
     for i in range(8):
         # Escojemos al azar entre dos tipos de cartas
         if random.choice([True, False]):
-            carta_n = Carta([100 + i * (WIDTH - 100) / 8, HEIGHT - 150], [90, 100], NEGRO, 'LADRILLO1', texto_reparar,
-                            LADRILLO1)
+            carta_n = Carta([100 + i * (WIDTH - 100) / 8, HEIGHT - 150], [90, 100], NEGRO, 'LADRILLO1', LADRILLO1)
+            carta_n.loadObject(texto_reparar)
         else:
-            carta_n = Carta([100 + i * (WIDTH - 100) / 8, HEIGHT - 150], [90, 100], NEGRO, 'ESPADA1', texto_daño,
-                            ESPADA1)
+            carta_n = Carta([100 + i * (WIDTH - 100) / 8, HEIGHT - 150], [90, 100], NEGRO, 'ESPADA1', ESPADA1)
+            carta_n.loadObject(texto_daño)
         # Creamos y añadimos las animaciones a la carta creada
         expandir_carta_n = Animador(carta_n, 0.3, ['dimen', [150, 150]], 'expandir')
         encojer_carta_n = Animador(carta_n, 0.3, ['dimen', [50, 50]], 'encojer')
-        carta_n.loadObject(expandir_carta_n)
-        carta_n.loadObject(encojer_carta_n)
+        carta_n.loadObject(expandir_carta_n, encojer_carta_n)
 
         grupo_cartas.add(carta_n)
 
@@ -51,9 +52,9 @@ def renderWindow():
 
     # Mostramos las bases y torres
     grupo_base1.update(WIN)
-    grupo_base1.draw(WIN)
+    # grupo_base1.draw(WIN)
     grupo_base2.update(WIN)
-    grupo_base2.draw(WIN)
+    # grupo_base2.draw(WIN)
     for base in bases:
         base.update(WIN)
         base.redraw(WIN)
@@ -105,10 +106,10 @@ def cardHandler(tipo):
 # Genera los castillos al principio
 def generaCastillos():
     for i in range(2):
-        torrel = Torre(TORRESENCILLA2, 1, 1, 25, 125)
-        torrer = Torre(TORRESENCILLA2, 1, 1, 25, 125)
-        torrec = Torre(TORRESENCILLA2, 1, 1, 30, 150)
-        muralla = Torre(MURALLA2, 1, 1, 175, 55)
+        torrel = Torre(TORRESENCILLA2, 't_izq', 1, 1, 25, 125)
+        torrer = Torre(TORRESENCILLA2, 't_der', 1, 1, 25, 125)
+        torrec = Torre(TORRESENCILLA2, 't_cen', 1, 1, 30, 150)
+        muralla = Torre(MURALLA2, 'mura', 1, 1, 175, 55)
         hp = 100
         hp_texto = TextoColgado(100, TEST_FONT_DESCR, AZUL)
         hp_muro = 100
@@ -119,17 +120,13 @@ def generaCastillos():
         else:
             grupo_base2.add(torrel, torrer, torrec, muralla)
 
-        base = Base(225 + i * (WIDTH - 450), 150, 1, 1, torrel, torrer, torrec, muralla, hp, hp_texto, hp_muro,
-                    hp_muro_texto)
+        base = Base((225 + i * (WIDTH - 450), 150), 1, 1, hp, hp_texto, hp_muro, hp_muro_texto)
         bases.append(base)
         anim_base1 = Animador(bases[i], 1.2, ['hp', bases[i].get('hp') - 5], 'resta hp')
         anim_base2 = Animador(bases[i], 1.2, ['hp', bases[i].get('hp') + 5], 'suma hp')
         anim_mura1 = Animador(bases[i], 1.2, ['hp_muro', bases[i].get('hp_muro') - 5], 'resta hp_muro')
         anim_mura2 = Animador(bases[i], 1.2, ['hp_muro', bases[i].get('hp_muro') + 5], 'suma hp_muro')
-        base.loadObject(anim_base1)
-        base.loadObject(anim_base2)
-        base.loadObject(anim_mura1)
-        base.loadObject(anim_mura2)
+        base.loadObject(torrel, torrer, torrec, muralla, anim_base1, anim_base2, anim_mura1, anim_mura2)
 
 
 # Genera los recursos al principio
@@ -158,8 +155,8 @@ grupo_cartas = pygame.sprite.Group()
 # Grupo de sprites para los recursos
 grupo_recursos1 = pygame.sprite.Group()
 # Texto para las cartas
-texto_daño = TextoColgado('Daño', TEST_FONT_DESCR, ROJO)
-texto_reparar = TextoColgado('Reparar', TEST_FONT_DESCR, AZUL)
+texto_daño = TextoColgado('Daño', TEST_FONT_DESCR, ROJO, 'descr')
+texto_reparar = TextoColgado('Reparar', TEST_FONT_DESCR, AZUL, 'descr')
 
 # Barajamos las cartas una primera vez, y creamos los castillos
 shuffle()

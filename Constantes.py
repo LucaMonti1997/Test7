@@ -42,4 +42,4 @@ ARIAL = pygame.font.SysFont('Arial', 40)
 # Los NUM son parametros de un numero
 # Los TUP son tuples, listas, conjuntos varios...
 ANIMABLES_NUM = ['hp', 'hp_muro']
-ANIMABLES_TUP = ['color', 'dimen']
+ANIMABLES_TUP = ['coord', 'dimen', 'color']
