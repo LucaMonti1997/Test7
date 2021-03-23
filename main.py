@@ -88,9 +88,6 @@ def botonHandler(tipo):
         if not bases[0].anim['resta hp_muro'].busy:
             bases[0].anim['resta hp_muro'].target = ['hp_muro', clamp(bases[0].get('hp_muro') - 25, 0, 100)]
             bases[0].anim['resta hp_muro'].start()
-    elif tipo == 3:
-        for recurso in grupo_recursos1:
-            recurso.posicion = textbox_pos.getText()
 
 
 # Gestiona el uso de cartas
@@ -138,9 +135,16 @@ def generaCastillos():
 # Genera los recursos al principio
 def generaRecursos():
     grupo_recursos1.empty()
+    texto_espadas = TextoColgado('Espadas', TEST_FONT_DESCR, VERDE, 'espadas')
+    numero_espadas = TextoColgado(5, TEST_FONT_DESCR, VERDE_CLARO, 'cantidad espadas')
+    texto_herreros = TextoColgado('Herreros', TEST_FONT_DESCR, ROJO, 'herreros')
+    numero_herreros = TextoColgado(2, TEST_FONT_DESCR, ROJO_CLARO, 'cantidad herreros')
     recurso1 = Recurso('espadas', 5, 3)
     carta_recurso1 = CartaRecurso((100, 100), (150, 150), NEGRO, REC_ESPADA1, recurso1)
     carta_recurso1.loadObject(texto_espadas)
+    carta_recurso1.loadObject(numero_espadas)
+    carta_recurso1.loadObject(texto_herreros)
+    carta_recurso1.loadObject(numero_herreros)
     grupo_recursos1.add(carta_recurso1)
 
 
@@ -156,7 +160,6 @@ grupo_recursos1 = pygame.sprite.Group()
 # Texto para las cartas
 texto_daño = TextoColgado('Daño', TEST_FONT_DESCR, ROJO)
 texto_reparar = TextoColgado('Reparar', TEST_FONT_DESCR, AZUL)
-texto_espadas = TextoColgado('Algunas cosas', TEST_FONT_DESCR, VERDE, 'espadas')
 
 # Barajamos las cartas una primera vez, y creamos los castillos
 shuffle()
@@ -167,14 +170,10 @@ generaRecursos()
 boton_damage = pygame_widgets.Button(WIN, 250, 300, 125, 40, text='Dañar castillo', onClick=botonHandler,
                                      onClickParams=[1])
 boton_damage_muro = pygame_widgets.Button(WIN, 250, 350, 125, 40, text='Dañar muras', onClick=botonHandler,
-                                          onClickParams=[3])
+                                          onClickParams=[2])
 boton_shuffle = pygame_widgets.Button(WIN, 450, 325, 125, 40, text='Cartas nuevas', onClick=shuffle)
 
-textbox_pos = pygame_widgets.TextBox(WIN, 150, 125, 200, 25)
-sliderx = pygame_widgets.Slider(WIN, 250, 50, 200, 25, min=0, max=1, step=0.01)
-slidery = pygame_widgets.Slider(WIN, 250, 150, 200, 25, min=0, max=1, step=0.01)
-
-lWidgets = [boton_damage, boton_damage_muro, boton_shuffle, textbox_pos, sliderx, slidery]
+lWidgets = [boton_damage, boton_damage_muro, boton_shuffle]
 
 
 def main():
@@ -194,9 +193,7 @@ def main():
         # Testeo
         for boton in lWidgets:
             boton.listen(events)
-        for recurso in grupo_recursos1:
-            recurso.offset_x = sliderx.getValue()
-            recurso.offset_y = slidery.getValue()
+
         renderWindow()
     pygame.quit()
 

@@ -316,6 +316,11 @@ class Carta(PlantillaCarta):
         self.descr = descr
         self.tipo = tipo
 
+    # Actualiza graficamente el objeto
+    def update(self, win):
+        super().update(win)
+        self.animSelf()
+
     # Actualiza graficamente los iconos y textos del objeto
     def redraw(self, win):
         super().redraw(win)
@@ -341,10 +346,6 @@ class Carta(PlantillaCarta):
 
 
 class CartaRecurso(PlantillaCarta):
-    # Atributos de prueba para offset textos
-    posicion = 'centro'
-    offset_x = 0
-    offset_y = 0
 
     def __init__(self, coord, dimen, color, link_icono, recurso):
         """
@@ -361,8 +362,17 @@ class CartaRecurso(PlantillaCarta):
     def redraw(self, win):
         super().redraw(win)
         self.textos['espadas'].renderSelf()
+        self.textos['cantidad espadas'].renderSelf()
+        self.textos['herreros'].renderSelf()
+        self.textos['cantidad herreros'].renderSelf()
         win.blit(self.textos['espadas'].texto,
-                 colocar(self, self.textos['espadas'], self.posicion, self.offset_x, self.offset_y))
+                 colocar(self, self.textos['espadas'], ['left', 'top']))
+        win.blit(self.textos['cantidad espadas'].texto,
+                 colocar(self, self.textos['cantidad espadas'], ['left', 'top'], [0.3, 0.2]))
+        win.blit(self.textos['herreros'].texto,
+                 colocar(self, self.textos['herreros'], ['right', 'top']))
+        win.blit(self.textos['cantidad herreros'].texto,
+                 colocar(self, self.textos['cantidad herreros'], ['right', 'top'], [0.3, 0.2]))
 
     # Cuelga objetos sobre este objeto, para poder ser usado a traves de este objeto
     # Por ejemplo colgar distintos tipos de animaciones
@@ -382,6 +392,16 @@ class TextoColgado(object):
 
     def __init__(self, valor, font, color, identificaor='nada'):
         """
+        Texto extra de otros objetos. Titulos, descripciones, etc.
+
+        "Colgado" porque su posición será relativa al objeto del que se cuelgue.
+
+        Hay que ampliar sus capacidades, de momento solo acepta numeros o solo texto.
+
+        Y al acceder a self.valor no se sabe que tipo se saca.
+
+        Quizás conviene crear clases mas especificas.
+
         :param valor: Mixto. Lo que se muestra en el texto
         :param font: Font. Font que usa el texto
         :param color: Lista. Color del texto
