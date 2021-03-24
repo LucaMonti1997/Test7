@@ -21,6 +21,7 @@ WIDTH, HEIGHT = 1200, 700
 ESPADA1 = 'Assets/TestAssets/Espada1.png'
 REC_ESPADA1 = 'Assets/TestAssets/RecursoEspada1.png'
 LADRILLO1 = 'Assets/TestAssets/Ladrillo1.png'
+TAPADA1 = 'Assets/TestAssets/Tapada1.png'
 TORRE1 = 'Assets/TestAssets/Torre1.png'
 TORRE2 = 'Assets/TestAssets/Torre2.png'
 TORRESENCILLA1 = 'Assets/TestAssets/Castillo1/TorreSencilla1.png'

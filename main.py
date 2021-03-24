@@ -18,20 +18,24 @@ pygame.display.set_caption('Test7')
 def shuffle():
     grupo_cartas.empty()
     # Generamos 8 cartas
-    for i in range(8):
-        # Escojemos al azar entre dos tipos de cartas
-        if random.choice([True, False]):
-            carta_n = Carta([100 + i * (WIDTH - 100) / 8, HEIGHT - 150], [90, 100], NEGRO, 'LADRILLO1', LADRILLO1)
-            carta_n.loadObject(texto_reparar)
-        else:
-            carta_n = Carta([100 + i * (WIDTH - 100) / 8, HEIGHT - 150], [90, 100], NEGRO, 'ESPADA1', ESPADA1)
-            carta_n.loadObject(texto_daño)
-        # Creamos y añadimos las animaciones a la carta creada
-        expandir_carta_n = Animador(carta_n, 0.3, ['dimen', [150, 150]], 'expandir')
-        encojer_carta_n = Animador(carta_n, 0.3, ['dimen', [50, 50]], 'encojer')
-        carta_n.loadObject(expandir_carta_n, encojer_carta_n)
-
-        grupo_cartas.add(carta_n)
+    if narrador.player1_turn:
+        for i in range(8):
+            # Escojemos al azar entre dos tipos de cartas
+            if random.choice([True, False]):
+                carta_n = Carta([100 + i * (WIDTH - 100) / 8, HEIGHT - 150], [90, 100], NEGRO, 'LADRILLO1', LADRILLO1)
+                carta_n.loadObject(texto_reparar)
+            else:
+                carta_n = Carta([100 + i * (WIDTH - 100) / 8, HEIGHT - 150], [90, 100], NEGRO, 'ESPADA1', ESPADA1)
+                carta_n.loadObject(texto_daño)
+            # Creamos y añadimos las animaciones a la carta creada
+            expandir_carta_n = Animador(carta_n, 0.3, ['dimen', [150, 150]], 'expandir')
+            encojer_carta_n = Animador(carta_n, 0.3, ['dimen', [50, 50]], 'encojer')
+            carta_n.loadObject(expandir_carta_n, encojer_carta_n)
+            grupo_cartas.add(carta_n)
+    else:
+        for i in range(8):
+            carta_n = CartaTapada([100 + i * (WIDTH - 100) / 8, HEIGHT - 150], [90, 100], NEGRO, 'TAPADA1', TAPADA1)
+            grupo_cartas.add(carta_n)
 
 
 # "Pinta" la pantalla
@@ -51,9 +55,9 @@ def renderWindow():
         carta_rec.redraw(WIN)
 
     # Mostramos las bases y torres
-    grupo_base1.update(WIN)
+    # grupo_base1.update(WIN)
     # grupo_base1.draw(WIN)
-    grupo_base2.update(WIN)
+    # grupo_base2.update(WIN)
     # grupo_base2.draw(WIN)
     for base in bases:
         base.update(WIN)
@@ -72,6 +76,7 @@ def mouseHandler(pos):
     for carta in grupo_cartas:
         if carta.mouseOver(pos):
             cardHandler(carta.tipo)
+            narrador.quiero_cambiar = True
 
 
 # Gestiona las pulsaciones de teclas
@@ -110,23 +115,20 @@ def generaCastillos():
         torrer = Torre(TORRESENCILLA2, 't_der', 1, 1, 25, 125)
         torrec = Torre(TORRESENCILLA2, 't_cen', 1, 1, 30, 150)
         muralla = Torre(MURALLA2, 'mura', 1, 1, 175, 55)
-        hp = 100
-        hp_texto = TextoColgado(100, TEST_FONT_DESCR, AZUL)
-        hp_muro = 100
-        hp_muro_texto = TextoColgado(100, TEST_FONT_DESCR, ROJO)
 
-        if i == 0:
-            grupo_base1.add(torrel, torrer, torrec, muralla)
-        else:
-            grupo_base2.add(torrel, torrer, torrec, muralla)
+        hp_texto = TextoColgado(100, TEST_FONT_DESCR, AZUL, 'hp')
+        hp_muro_texto = TextoColgado(100, TEST_FONT_DESCR, ROJO, 'hp_muro')
 
-        base = Base((225 + i * (WIDTH - 450), 150), 1, 1, hp, hp_texto, hp_muro, hp_muro_texto)
+        base = Base((225 + i * (WIDTH - 450), 150), 1, 1)
         bases.append(base)
+
         anim_base1 = Animador(bases[i], 1.2, ['hp', bases[i].get('hp') - 5], 'resta hp')
         anim_base2 = Animador(bases[i], 1.2, ['hp', bases[i].get('hp') + 5], 'suma hp')
         anim_mura1 = Animador(bases[i], 1.2, ['hp_muro', bases[i].get('hp_muro') - 5], 'resta hp_muro')
         anim_mura2 = Animador(bases[i], 1.2, ['hp_muro', bases[i].get('hp_muro') + 5], 'suma hp_muro')
-        base.loadObject(torrel, torrer, torrec, muralla, anim_base1, anim_base2, anim_mura1, anim_mura2)
+
+        base.loadObject(torrel, torrer, torrec, muralla, hp_texto, hp_muro_texto, anim_base1, anim_base2, anim_mura1,
+                        anim_mura2)
 
 
 # Genera los recursos al principio
@@ -145,9 +147,13 @@ def generaRecursos():
     grupo_recursos1.add(carta_recurso1)
 
 
-# Grupos de sprites para las torres de las dos bases
-grupo_base1 = pygame.sprite.Group()
-grupo_base2 = pygame.sprite.Group()
+def cambiarTurno():
+    narrador.quiero_cambiar = True
+
+
+# Creamos el narrador
+narrador = Narrador()
+
 # Grupo para las dos bases
 bases = []
 # Grupo de sprites para las cartas
@@ -168,7 +174,7 @@ boton_damage = pygame_widgets.Button(WIN, 250, 300, 125, 40, text='Dañar castil
                                      onClickParams=[1])
 boton_damage_muro = pygame_widgets.Button(WIN, 250, 350, 125, 40, text='Dañar muras', onClick=botonHandler,
                                           onClickParams=[2])
-boton_shuffle = pygame_widgets.Button(WIN, 450, 325, 125, 40, text='Cartas nuevas', onClick=shuffle)
+boton_shuffle = pygame_widgets.Button(WIN, 450, 325, 125, 40, text='Cambiar turno', onClick=cambiarTurno)
 
 lWidgets = [boton_damage, boton_damage_muro, boton_shuffle]
 
@@ -179,6 +185,9 @@ def main():
     while run:
         clock.tick(30)
         # Comprobamos que eventos han ocurrido y actuamos respecto a ellos
+        if narrador.quiero_cambiar:
+            narrador.PasarTurno()
+            shuffle()
         events = pygame.event.get()
         for event in events:
             if event.type == pygame.QUIT:

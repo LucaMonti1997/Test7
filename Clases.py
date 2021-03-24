@@ -2,6 +2,7 @@
 
 import pygame
 import pygame_widgets
+import random
 from threading import Thread
 import time
 from Constantes import *
@@ -97,9 +98,9 @@ class Animador(object):
 
 # Base de cada jugador. Donde está el castillo, la vida, etc.
 # Maneja las torres, la muralla, textos y numeros
-class Base(pygame.sprite.Sprite):
+class Base(object):
 
-    def __init__(self, coord, mult_ancho, mult_alto, hp, texto_hp, hp_muro, texto_hp_muro):
+    def __init__(self, coord, mult_ancho, mult_alto, hp=100, hp_muro=100):
         """
         Base de cada jugador. Donde está el castillo, la vida, etc.
 
@@ -113,15 +114,12 @@ class Base(pygame.sprite.Sprite):
         :param hp_muro: Numero. Marca la vida de la muralla
         :param texto_hp_muro: Objeto TextoColgado que representa hp_muro
         """
-        super().__init__()
         self.coord = coord
         self.mult_ancho = mult_ancho
         self.mult_alto = mult_alto
 
         self.hp = hp
-        self.texto_hp = texto_hp
         self.hp_muro = hp_muro
-        self.texto_hp_muro = texto_hp_muro
 
         self.torre = {}  # Diccionario con obetos Torre
         self.textos = {}  # Diccionario con objetos TextoColgado
@@ -176,6 +174,8 @@ class Base(pygame.sprite.Sprite):
             self.add_off('coord')
             self.dirty['coord'] = False
 
+        for llave in self.torre.keys():
+            self.torre[llave].update(win)
         # Ponemos el suelo debajo, para esconder lo que se hunde.
         # Temporal, el suelo irá por separado (o no...)
         pygame.draw.rect(win, VERDE_CLARO,
@@ -234,27 +234,32 @@ class Base(pygame.sprite.Sprite):
 
     # Reescribe el texto
     def redraw(self, win):
-        self.texto_hp.valor = self.hp
-        self.texto_hp_muro.valor = self.hp_muro
-        self.texto_hp.renderSelf()
-        self.texto_hp_muro.renderSelf()
-        win.blit(self.texto_hp.texto, (self.coord[0], self.coord[1]))
-        win.blit(self.texto_hp_muro.texto, (self.coord[0] + 50, self.coord[1]))
+        self.textos['hp'].valor = self.hp
+        self.textos['hp_muro'].valor = self.hp_muro
+        self.textos['hp'].renderSelf()
+        self.textos['hp_muro'].renderSelf()
+        win.blit(self.textos['hp'].texto, (self.coord[0], self.coord[1]))
+        win.blit(self.textos['hp_muro'].texto, (self.coord[0] + 50, self.coord[1]))
 
     # Saber si el ratón se encuentra por encima
     def mouseOver(self, pos):
         pass  # LLamar mouseOver de otros objetos
 
 
-# Las torres. Tienen puntos de vida HP y tal
+# Las imagenes de las torres/muras
 class Torre(pygame.sprite.Sprite):
 
     def __init__(self, enlace, identificador, x=1, y=1, ancho=1, alto=1):
         """
+        Las imagenes de las torres/muras.
+
+        Falta cambiar el sistema de coordenadas y dimensiones como listas en lugar de numeros separados. Ya lo he
+        intentado, pero se bugueaba por algún motivo.
+
         :param enlace: String. Ruta a la imagen de la imagen
         :param identificador: ID que identifica el tipo de torre que es
-        :param coord: Lista. Coordenadas [x,y]
-        :param dimen_base: Lista. Dimensiones base [ancho, alto]
+        :param coord: Lista. Coordenadas [x,y]. Por acabar de hacer
+        :param dimen_base: Lista. Dimensiones base [ancho, alto]. Por acabar de hacer
         """
         super().__init__()
         self.x = x
@@ -291,6 +296,10 @@ class PlantillaCarta(pygame.sprite.Sprite):
 
     def __init__(self, coord, dimen, color, link_icono):
         """
+        Plantilla para carta, rectangulos y cosas por el estilo
+
+        Tendrán un icono, texto y posibles animaciones asociadas
+
         :param coord: Lista. Coordenadas [x,y]
         :param dimen: Lista. Dimensiones [ancho,alto]
         :param color: Color de fondo
@@ -403,6 +412,21 @@ class Carta(PlantillaCarta):
                 self.anim['encojer'].start()
 
 
+class CartaTapada(PlantillaCarta):
+    def __init__(self, coord, dimen, color, tipo, link_icono):
+        """
+        Carta tapada. No hace nada
+
+        :param coord: Lista. Coordenadas [x,y]
+        :param dimen: Lista. Dimensiones [ancho,alto]
+        :param color: Color de fondo
+        :param tipo: String. Tipo de carta. Identificador de algun tipo
+        :param link_icono: String. Ruta a la imagen del icono
+        """
+        super().__init__(coord, dimen, color, link_icono)
+        self.tipo = tipo
+
+
 # Los recuadros donde se muestran cada recurso
 class CartaRecurso(PlantillaCarta):
 
@@ -434,6 +458,48 @@ class CartaRecurso(PlantillaCarta):
                  colocar(self, self.textos['herreros'], ['right', 'top']))
         win.blit(self.textos['cantidad herreros'].texto,
                  colocar(self, self.textos['cantidad herreros'], ['right', 'top'], [0.3, 0.2]))
+
+
+# Cada tipo de recurso
+class Recurso(object):
+    def __init__(self, tipo, cantidad, generador):
+        """
+        Cada tipo de recurso. Tendrá metodos que permitan gestionar el gasto y la generación automaticamente.
+
+        :param tipo: String. Tipo de recurso
+        :param cantidad. Numero. Cantidad del recurso inicail y a lo largo de la partida
+        :param generador. Numero. Cantidad de recurso que se genera por turno
+        """
+        self._tipo = tipo
+        self._cantidad = cantidad
+        self._generador = generador
+
+    def get(self, attr):
+        """
+        :param attr: Tipo de atributo que se quiere acceder. Puede ser 'tipo','cantidad','generador'
+        """
+        if attr == 'tipo':
+            return self._tipo
+        elif attr == 'cantidad':
+            return self._cantidad
+        elif attr == '_generador':
+            return self._generador
+
+    def set(self, attr, value):
+        """
+        :param attr: Tipo de atributo que se quiere acceder. Puede ser 'tipo','cantidad','generador'
+        :param value: Valor que se queire asociar
+        """
+        if attr == 'tipo':
+            self._tipo = value
+        elif attr == 'cantidad':
+            self._cantidad = value
+        elif attr == 'generador':
+            self._generador = value
+
+    # Calcula el nuevo valor de cantidad
+    def reCalcula(self, value):
+        self._cantidad = clamp(self._cantidad + value)
 
 
 # Texto extra de otros objetos. Titulos, descripciones, etc.
@@ -470,41 +536,17 @@ class TextoColgado(object):
         self.texto = self.font.render(str(self.valor), 1, self.color)
 
 
-# Cada tipo de recurso
-class Recurso(object):
-    def __init__(self, tipo, cantidad, generador):
+class Narrador(object):
+    def __init__(self):
         """
-        :param tipo: String. Tipo de recurso
-        :param cantidad. Numero. Cantidad del recurso inicail y a lo largo de la partida
-        :param generador. Numero. Cantidad de recurso que se genera por turno
+        Se encarga de "dirigir" la partida. Reparte las cartas, gestiona los turnos, generación de recursos, eventos
+        aleatorios, etc.
         """
-        self._tipo = tipo
-        self._cantidad = cantidad
-        self._generador = generador
+        self.player1_turn = random.choice([True, False])
+        self.player2_turn = not self.player1_turn
+        self.quiero_cambiar = True  # Indica si el narrador quiere cambiar turno
 
-    def get(self, attr):
-        """
-        :param attr: Tipo de atributo que se quiere acceder. Puede ser 'tipo','cantidad','generador'
-        """
-        if attr == 'tipo':
-            return self._tipo
-        elif attr == 'cantidad':
-            return self._cantidad
-        elif attr == '_generador':
-            return self._generador
-
-    def set(self, attr, value):
-        """
-        :param attr: Tipo de atributo que se quiere acceder. Puede ser 'tipo','cantidad','generador'
-        :param value: Valor que se queire asociar
-        """
-        if attr == 'tipo':
-            self._tipo = value
-        elif attr == 'cantidad':
-            self._cantidad = value
-        elif attr == 'generador':
-            self._generador = value
-
-    # Calcula el nuevo valor de cantidad
-    def reCalcula(self, value):
-        self._cantidad = clamp(self._cantidad + value)
+    def PasarTurno(self):
+        self.player1_turn = not self.player1_turn
+        self.player2_turn = not self.player1_turn
+        self.quiero_cambiar = False
