@@ -40,7 +40,7 @@ def shuffle():
 
 # "Pinta" la pantalla
 def renderWindow():
-    WIN.fill(AZUL_CLARO)
+    WIN.fill(VERDE_CLARO)
 
     # Mostramos las cartas
     grupo_cartas.update(WIN)

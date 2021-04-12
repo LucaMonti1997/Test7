@@ -64,7 +64,7 @@ class Animador(object):
             # Bucle de animacón en sí
             while time.time() - start_time < self.timeout:
                 # Nº de calculos por segundo
-                clock.tick(60)
+                clock.tick(30)
 
                 # Comprobamos si el flag nos indica que hay que parar
                 if self.stop_thread:
